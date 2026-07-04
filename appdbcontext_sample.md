@@ -1,99 +1,433 @@
-4. Typical Folder Structure
-Project
-│
-├── Models
-│      User.cs
-│      Product.cs
-│      Category.cs
-│      Order.cs
-│      Review.cs
-│
-├── Data
-│      ApplicationDbContext.cs
-│
-├── Controllers
-│
-├── Services
-│
-├── Repositories
-│
-└── Program.cs
+# 📘 Entity Framework Core - ApplicationDbContext
 
+## What is ApplicationDbContext?
 
-ApplicationDbContext with Multiple Tables
+`ApplicationDbContext` is the main class of Entity Framework Core that acts as a bridge between your application and the database.
+
+It is responsible for:
+- Database Connection
+- CRUD Operations
+- Change Tracking
+- Relationships
+- Migrations
+
+---
+
+# Basic Structure
+
+```csharp
+using Microsoft.EntityFrameworkCore;
+
 public class ApplicationDbContext : DbContext
 {
-    public ApplicationDbContext(
-        DbContextOptions<ApplicationDbContext> options
-    ) : base(options)
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+        : base(options)
     {
-
     }
 
     public DbSet<User> Users { get; set; }
-
-    public DbSet<Product> Products { get; set; }
-
-    public DbSet<Category> Categories { get; set; }
-
-    public DbSet<Order> Orders { get; set; }
-
-    public DbSet<Review> Reviews { get; set; }
 }
+```
 
+---
 
-What is OnModelCreating()?
+# DbContextOptions
 
-Ye method Entity Framework ko batata hai
+Used to pass database configuration to DbContext.
 
-Table ka naam
-Primary key
-Foreign key
-Relationships
-Constraints
-Indexes
-Seed Data
-Default values
+```csharp
+public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+    : base(options)
+{
+}
+```
 
-etc.
+Registration
 
+```csharp
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+{
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+});
+```
+
+---
+
+# DbSet<T>
+
+Every entity corresponds to one database table.
+
+```csharp
+public DbSet<User> Users { get; set; }
+
+public DbSet<Product> Products { get; set; }
+
+public DbSet<Order> Orders { get; set; }
+
+public DbSet<Category> Categories { get; set; }
+```
+
+---
+
+# OnModelCreating()
+
+Used to configure database schema using Fluent API.
+
+```csharp
 protected override void OnModelCreating(ModelBuilder modelBuilder)
 {
     base.OnModelCreating(modelBuilder);
 }
+```
 
+---
 
-Fluent API
+# Table Name
 
-Fluent API Entity Framework ka configuration syntax hai.
+```csharp
+modelBuilder.Entity<User>()
+    .ToTable("Users");
+```
 
-Instead of attributes
+---
 
-[Required]
-[StringLength(100)]
+# Primary Key
 
-Hum likhte hain
+```csharp
+modelBuilder.Entity<User>()
+    .HasKey(x => x.Id);
+```
 
+Composite Key
+
+```csharp
+modelBuilder.Entity<StudentCourse>()
+    .HasKey(x => new
+    {
+        x.StudentId,
+        x.CourseId
+    });
+```
+
+---
+
+# Column Name
+
+```csharp
 modelBuilder.Entity<User>()
     .Property(x => x.Name)
-    .HasMaxLength(100)
+    .HasColumnName("User_Name");
+```
+
+---
+
+# Required Field
+
+```csharp
+modelBuilder.Entity<User>()
+    .Property(x => x.Email)
     .IsRequired();
+```
 
-Advantages
+---
 
-Cleaner
-More powerful
-Professional projects use this
+# Max Length
 
+```csharp
+modelBuilder.Entity<User>()
+    .Property(x => x.Name)
+    .HasMaxLength(100);
+```
 
-Professional ApplicationDbContext
+---
+
+# Column Type
+
+```csharp
+modelBuilder.Entity<Product>()
+    .Property(x => x.Price)
+    .HasColumnType("decimal(18,2)");
+```
+
+---
+
+# Default Value
+
+```csharp
+modelBuilder.Entity<User>()
+    .Property(x => x.CreatedAt)
+    .HasDefaultValueSql("GETDATE()");
+```
+
+---
+
+# Unique Index
+
+```csharp
+modelBuilder.Entity<User>()
+    .HasIndex(x => x.Email)
+    .IsUnique();
+```
+
+---
+
+# Normal Index
+
+```csharp
+modelBuilder.Entity<Product>()
+    .HasIndex(x => x.Name);
+```
+
+---
+
+# Alternate Key
+
+```csharp
+modelBuilder.Entity<User>()
+    .HasAlternateKey(x => x.Email);
+```
+
+---
+
+# Check Constraint
+
+```csharp
+modelBuilder.Entity<Product>()
+    .ToTable(t =>
+    {
+        t.HasCheckConstraint(
+            "CK_Product_Price",
+            "Price > 0"
+        );
+    });
+```
+
+---
+
+# Ignore Property
+
+```csharp
+modelBuilder.Entity<User>()
+    .Ignore(x => x.ConfirmPassword);
+```
+
+---
+
+# One-to-Many Relationship
+
+## Models
+
+```csharp
+public class User
+{
+    public int Id { get; set; }
+
+    public ICollection<Order> Orders { get; set; }
+}
+
+public class Order
+{
+    public int Id { get; set; }
+
+    public int UserId { get; set; }
+
+    public User User { get; set; }
+}
+```
+
+Configuration
+
+```csharp
+modelBuilder.Entity<Order>()
+    .HasOne(x => x.User)
+    .WithMany(x => x.Orders)
+    .HasForeignKey(x => x.UserId);
+```
+
+---
+
+# One-to-One Relationship
+
+## Models
+
+```csharp
+public class User
+{
+    public int Id { get; set; }
+
+    public UserProfile Profile { get; set; }
+}
+
+public class UserProfile
+{
+    public int Id { get; set; }
+
+    public int UserId { get; set; }
+
+    public User User { get; set; }
+}
+```
+
+Configuration
+
+```csharp
+modelBuilder.Entity<User>()
+    .HasOne(x => x.Profile)
+    .WithOne(x => x.User)
+    .HasForeignKey<UserProfile>(x => x.UserId);
+```
+
+---
+
+# Many-to-Many Relationship
+
+## Models
+
+```csharp
+public class Student
+{
+    public int Id { get; set; }
+
+    public ICollection<StudentCourse> StudentCourses { get; set; }
+}
+
+public class Course
+{
+    public int Id { get; set; }
+
+    public ICollection<StudentCourse> StudentCourses { get; set; }
+}
+
+public class StudentCourse
+{
+    public int StudentId { get; set; }
+
+    public Student Student { get; set; }
+
+    public int CourseId { get; set; }
+
+    public Course Course { get; set; }
+}
+```
+
+Configuration
+
+```csharp
+modelBuilder.Entity<StudentCourse>()
+    .HasKey(x => new
+    {
+        x.StudentId,
+        x.CourseId
+    });
+```
+
+---
+
+# Cascade Delete
+
+```csharp
+modelBuilder.Entity<Order>()
+    .HasOne(x => x.User)
+    .WithMany(x => x.Orders)
+    .HasForeignKey(x => x.UserId)
+    .OnDelete(DeleteBehavior.Cascade);
+```
+
+Other Options
+
+```csharp
+.OnDelete(DeleteBehavior.Restrict);
+
+.OnDelete(DeleteBehavior.NoAction);
+```
+
+---
+
+# Seed Data
+
+```csharp
+modelBuilder.Entity<Role>()
+    .HasData(
+        new Role
+        {
+            Id = 1,
+            Name = "Admin"
+        },
+        new Role
+        {
+            Id = 2,
+            Name = "User"
+        }
+    );
+```
+
+---
+
+# Global Query Filter
+
+```csharp
+modelBuilder.Entity<User>()
+    .HasQueryFilter(x => !x.IsDeleted);
+```
+
+---
+
+# Value Conversion
+
+```csharp
+modelBuilder.Entity<User>()
+    .Property(x => x.Status)
+    .HasConversion<string>();
+```
+
+---
+
+# Professional Approach (Entity Configuration)
+
+## UserConfiguration.cs
+
+```csharp
+public class UserConfiguration : IEntityTypeConfiguration<User>
+{
+    public void Configure(EntityTypeBuilder<User> builder)
+    {
+        builder.ToTable("Users");
+
+        builder.HasKey(x => x.Id);
+
+        builder.Property(x => x.Name)
+               .HasMaxLength(100)
+               .IsRequired();
+
+        builder.HasIndex(x => x.Email)
+               .IsUnique();
+    }
+}
+```
+
+Register All Configurations
+
+```csharp
+protected override void OnModelCreating(ModelBuilder modelBuilder)
+{
+    base.OnModelCreating(modelBuilder);
+
+    modelBuilder.ApplyConfigurationsFromAssembly(
+        typeof(ApplicationDbContext).Assembly
+    );
+}
+```
+
+---
+
+# Complete ApplicationDbContext
+
+```csharp
 public class ApplicationDbContext : DbContext
 {
-    public ApplicationDbContext(
-        DbContextOptions<ApplicationDbContext> options
-    ) : base(options)
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+        : base(options)
     {
-
     }
 
     public DbSet<User> Users => Set<User>();
@@ -110,100 +444,54 @@ public class ApplicationDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.Entity<User>()
-            .HasIndex(x => x.Email)
-            .IsUnique();
-
-        modelBuilder.Entity<Product>()
-            .Property(x => x.Price)
-            .HasColumnType("decimal(18,2)");
-
-        modelBuilder.Entity<Order>()
-            .HasOne(x => x.User)
-            .WithMany(x => x.Orders)
-            .HasForeignKey(x => x.UserId);
-
-        modelBuilder.Entity<Role>()
-            .HasData(
-                new Role
-                {
-                    Id = 1,
-                    Name = "Admin"
-                },
-                new Role
-                {
-                    Id = 2,
-                    Name = "User"
-                }
-            );
+        modelBuilder.ApplyConfigurationsFromAssembly(
+            typeof(ApplicationDbContext).Assembly
+        );
     }
 }
+```
 
+---
 
-Enterprise-Level Best Practice
+# Folder Structure
 
-Large projects me OnModelCreating() ko bada nahi kiya jata.
+```
+Data/
+│── ApplicationDbContext.cs
 
-Har entity ki configuration alag file me hoti hai.
+Models/
+│── User.cs
+│── Product.cs
+│── Order.cs
+│── Category.cs
 
-Example
+Configurations/
+│── UserConfiguration.cs
+│── ProductConfiguration.cs
+│── OrderConfiguration.cs
+│── CategoryConfiguration.cs
+```
 
-Configurations
-│
-├── UserConfiguration.cs
-├── ProductConfiguration.cs
-├── OrderConfiguration.cs
-├── CategoryConfiguration.cs
-├── ReviewConfiguration.cs
+---
 
-Example
+# Interview Revision
 
-public class UserConfiguration
-    : IEntityTypeConfiguration<User>
-{
-    public void Configure(EntityTypeBuilder<User> builder)
-    {
-        builder.ToTable("Users");
-
-        builder.HasKey(x => x.Id);
-
-        builder.Property(x => x.Name)
-            .HasMaxLength(100)
-            .IsRequired();
-
-        builder.HasIndex(x => x.Email)
-            .IsUnique();
-    }
-}
-
-DbContext
-
-protected override void OnModelCreating(ModelBuilder modelBuilder)
-{
-    base.OnModelCreating(modelBuilder);
-
-    modelBuilder.ApplyConfigurationsFromAssembly(
-        typeof(ApplicationDbContext).Assembly
-    );
-}
-
-Ye automatically sari configuration classes ko load kar leta hai.
-
-
-📌 Quick Revision
-Feature	Purpose
-DbContext	Database ke sath communication
-DbSet<T>	Database table ko represent karta hai
-OnModelCreating()	Entity configuration ki central jagah
-Fluent API	Relationships aur constraints configure karne ke liye
-HasKey()	Primary Key define karta hai
-HasOne() / WithMany()	One-to-Many relationship
-WithOne()	One-to-One relationship    
-HasForeignKey()	Foreign Key define karta hai
-HasIndex()	Index banata hai
-IsUnique()	Unique constraint lagata hai
-HasDefaultValueSql()	Default SQL value set karta hai
-HasConversion()	Data type conversion (e.g., Enum → String)
-HasQueryFilter()	Global filter (Soft Delete)
-HasData()	Seed data insert karta hai
-ApplyConfigurationsFromAssembly()	Sab entity configurations automatically register karta hai
+- ✅ DbContext
+- ✅ DbContextOptions
+- ✅ DbSet<T>
+- ✅ OnModelCreating()
+- ✅ Fluent API
+- ✅ HasKey()
+- ✅ HasIndex()
+- ✅ HasAlternateKey()
+- ✅ HasCheckConstraint()
+- ✅ HasConversion()
+- ✅ HasQueryFilter()
+- ✅ HasData()
+- ✅ Ignore()
+- ✅ One-to-One
+- ✅ One-to-Many
+- ✅ Many-to-Many
+- ✅ Cascade Delete
+- ✅ Entity Configuration
+- ✅ ApplyConfigurationsFromAssembly()
