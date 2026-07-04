@@ -198,7 +198,7 @@ OnModelCreating()	Entity configuration ki central jagah
 Fluent API	Relationships aur constraints configure karne ke liye
 HasKey()	Primary Key define karta hai
 HasOne() / WithMany()	One-to-Many relationship
-WithOne()	One-to-One relationship
+WithOne()	One-to-One relationship    
 HasForeignKey()	Foreign Key define karta hai
 HasIndex()	Index banata hai
 IsUnique()	Unique constraint lagata hai
