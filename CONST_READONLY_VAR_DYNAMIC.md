@@ -1,56 +1,95 @@
+# C# Variables, Data Types, and Modifiers Guide
+
+A quick reference guide covering strongly typed, implicitly typed, dynamic variables, and immutability modifiers in C#.
+
+---
+
+## 1. Standard Data Types
+
+```csharp
 int age = 22;               // 4-byte whole number
 string name = "Fareed";     // Reference type text
 double salary = 25000.50;   // 8-byte floating point number
 bool isActive = true;       // Boolean (true/false)
+```
 
-// Implicitly typed variables (Type is fixed at compile time by the compiler)
+---
+
+## 2. Special Variable Types
+
+### Implicitly Typed Variables (`var`)
+*   **Compile-time fixed:** The compiler determines the type at compilation based on the assigned value.
+*   **Initialization requirement:** Must be assigned a value immediately when declared.
+*   **Type Locking:** Once initialized, the data type cannot change (e.g., a `string` var cannot later hold an `int`).
+*   **Tooling support:** Full IntelliSense support is available because the type is known to the IDE.
+*   **Under the hood:** `var` is not a type itself; it is a shorthand. It can represent either value types (`int`) or reference types (`string`).
+*   **Scope limits:** Cannot be used as function parameters or return types.
+
+### Dynamic Type (`dynamic`)
+*   **Runtime evaluation:** Bypasses compile-time checking; types are resolved only when the application runs.
+*   **Type Flexibility:** The underlying data type can safely change mid-execution.
+*   **Tooling support:** IntelliSense is not available because the IDE does not know the type ahead of time.
+*   **Under the hood:** `dynamic` is always a reference type.
+
+```csharp
+// Implicitly typed (Fixed at compile time)
 var score = 95; 
 
-// Dynamic type (Bypasses compile-time checking; evaluated at runtime)
+// Dynamic type (Evaluated at runtime)
 dynamic flexibleData = "Hello";
-flexibleData = 100; // This is allowed
+flexibleData = 100; // Completely valid
+```
 
-// Constants (Must be assigned at declaration; cannot change ever)
+---
+
+## 3. Immutability Modifiers (`const` vs `readonly`)
+
+### Constants (`const`)
+*   **Compile-time evaluation:** Value must be written directly into the code at declaration.
+*   **Scope flexibility:** Can be used inside methods or as class member variables.
+
+### Readonly (`readonly`)
+*   **Runtime evaluation:** Can be assigned during declaration or dynamically set inside a class constructor.
+*   **Scope limits:** Cannot be declared inside individual method scopes; must be class-level member variables.
+
+```csharp
+// Constants (Must be assigned at declaration; completely unchangeable)
 const double Pi = 3.14159;
 
-// Readonly (Can be assigned at declaration or inside a class constructor)
+// Readonly (Class member variable scope only)
 readonly string ConfigPath = "C:/app/config.json";
+```
 
+---
 
+## 4. Code Implementation Example
 
+```csharp
 using System;
 
 public class HelloWorld
 {
+    // Readonly field (Must be class level, not inside Main)
+    public static readonly string ConfigPath = "C:/app/config.json";
+
     public static void Main(string[] args)
     {
-        // VAR...... used to store as the dynamics data type value
-        Console.WriteLine ("Start small. Ship something.");
-        var a="bro";
-        Console.WriteLine($"value of a is: {a}");
-        Console.WriteLine("value of a is {0}:",a);
-        Console.WriteLine("value of a is: "+a);
+        Console.WriteLine("Start small. Ship something.");
         
-        a="okay bhai";
-        Console.WriteLine($"value of a is: {a}");
-        // var should be not be passed to the function parameter 
-        // also the var should not be returned from the function 
-        // when we initialize var then must declare the value in it as the const required the declaration while initilazing
-        // value of the var can not be changed to other data type once the data type is declared
-        // intelisence help is available
-        // var is value type variable
+        // --- Working with var ---
+        var a = "bro";
         
-        // DYNAMIC....used to store as the dynamics data type value
-        // dynamic is reference type
+        // Output variations
+        Console.WriteLine(\$"value of a is: {a}");        // String Interpolation
+        Console.WriteLine("value of a is {0}", a);       // Composite Formatting
+        Console.WriteLine("value of a is: " + a);        // String Concatenation
         
-        //Readonly: same as const but value declaration is not must while initilazing it
-        // also we can not use is in the funtion or the method scope it should be initialized in the class or as the member variables
+        a = "okay bhai"; // Allowed: Same data type
+        Console.WriteLine(\$"value of a is: {a}");
         
-        
-        // all the points for the var just consider the opposite of those for the dynamic 
-        
-        
-        
-        
+        // --- Working with dynamic ---
+        dynamic flexible = "Initial string";
+        flexible = 12345; // Allowed: Type changes at runtime
     }
 }
+```
