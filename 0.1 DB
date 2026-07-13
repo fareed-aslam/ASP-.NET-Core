@@ -1,0 +1,283 @@
+# MS SQL Server — Complete Learning Notes
+### By Fareed | A to Z Course
+
+---
+
+## 📚 Course Roadmap
+
+**Phase 1 — Foundations**
+1. Database concepts (RDBMS, tables, keys) ✅
+2. SQL Server architecture ✅
+3. Advanced SELECT queries ✅
+
+**Phase 2 — Core SQL (Next)**
+4. Joins (INNER, LEFT, RIGHT, FULL, CROSS, SELF)
+5. Aggregate functions + GROUP BY + HAVING
+6. Subqueries & CTEs
+
+**Phase 3 — Intermediate**
+7. Constraints (PK, FK, UNIQUE, CHECK, DEFAULT)
+8. Indexes (Clustered/Non-clustered)
+9. Views
+10. Stored Procedures
+11. Functions (Scalar & Table-valued)
+12. Triggers
+13. Transactions (ACID, COMMIT/ROLLBACK, Isolation levels)
+
+**Phase 4 — Advanced**
+14. Normalization deep dive (1NF–BCNF)
+15. Indexing strategy & Execution plans
+16. Window functions (ROW_NUMBER, RANK, PARTITION BY)
+17. Error handling (TRY/CATCH)
+18. Dynamic SQL
+19. Security (Logins, Users, Roles, Permissions)
+20. Backup & Restore
+21. Replication/Always On (overview)
+22. Integration with .NET/EF Core
+
+---
+
+## Lesson 1: Database Fundamentals + SQL Server Architecture
+
+### 1. Database kya hota hai?
+
+Database = organized collection of data jo easily store, retrieve aur manage ho sake.
+
+**RDBMS (Relational Database Management System)** — data ko **tables** (rows aur columns) mein store karta hai, aur tables ke beech **relationships** hoti hain (via keys). SQL Server, MySQL, PostgreSQL, Oracle — sab RDBMS hain.
+
+### 2. Key Terminology
+
+| Term | Matlab |
+|---|---|
+| **Table** | Data ka structure — rows (records) + columns (fields) |
+| **Row/Record** | Ek single entry (e.g., ek employee ka data) |
+| **Column/Field** | Ek attribute (e.g., Name, Age, Salary) |
+| **Primary Key (PK)** | Har row ko uniquely identify karta hai, NULL nahi ho sakta |
+| **Foreign Key (FK)** | Ek table ka column jo doosri table ke PK se link hota hai — relationship banata hai |
+| **Schema** | Tables ka logical grouping (default: `dbo`) |
+
+**Example:**
+```
+Employees table:
+EmployeeID (PK) | Name    | DepartmentID (FK)
+1               | Ali     | 10
+2               | Sara    | 20
+
+Departments table:
+DepartmentID (PK) | DeptName
+10                 | IT
+20                 | HR
+```
+`Employees.DepartmentID` foreign key hai jo `Departments.DepartmentID` (primary key) se relate karta hai.
+
+### 3. SQL Server Architecture (Hierarchy)
+
+```
+SQL Server Instance (ek installation, e.g. MSSQLSERVER)
+   └── Databases (e.g. master, tempdb, aur custom DB "CompanyDB")
+         └── Schemas (e.g. dbo)
+               └── Tables, Views, Stored Procedures, Functions, Triggers, Indexes
+```
+
+- **Instance**: SQL Server ka ek running copy — ek machine pe multiple instances ho sakte hain.
+- **System Databases** (auto-created, mat chhedna):
+  - `master` — server configuration
+  - `tempdb` — temporary data
+  - `model` — template for new DBs
+  - `msdb` — SQL Agent jobs
+- **SSMS**: GUI tool jahan query likhte, run karte, aur database manage karte hain.
+
+### 4. SQL Categories (Interview Important)
+
+| Category | Full Form | Commands | Purpose |
+|---|---|---|---|
+| **DDL** | Data Definition Language | CREATE, ALTER, DROP, TRUNCATE | Structure banana/badalna |
+| **DML** | Data Manipulation Language | INSERT, UPDATE, DELETE | Data ko change karna |
+| **DQL** | Data Query Language | SELECT | Data ko read karna |
+| **DCL** | Data Control Language | GRANT, REVOKE | Permissions |
+| **TCL** | Transaction Control Language | COMMIT, ROLLBACK, SAVEPOINT | Transactions manage karna |
+
+### 5. Practice Setup — CompanyDB
+
+```sql
+-- Naya database banao
+CREATE DATABASE CompanyDB;
+GO
+
+USE CompanyDB;
+GO
+
+-- Departments table
+CREATE TABLE Departments (
+    DepartmentID INT PRIMARY KEY IDENTITY(1,1),
+    DeptName VARCHAR(50) NOT NULL
+);
+
+-- Employees table (with Foreign Key)
+CREATE TABLE Employees (
+    EmployeeID INT PRIMARY KEY IDENTITY(1,1),
+    FirstName VARCHAR(50) NOT NULL,
+    LastName VARCHAR(50),
+    DepartmentID INT FOREIGN KEY REFERENCES Departments(DepartmentID),
+    Salary DECIMAL(10,2),
+    HireDate DATE
+);
+
+-- Sample data
+INSERT INTO Departments (DeptName) VALUES ('IT'), ('HR'), ('Sales'), ('Finance');
+
+INSERT INTO Employees (FirstName, LastName, DepartmentID, Salary, HireDate)
+VALUES 
+('Ali', 'Khan', 1, 85000, '2021-03-15'),
+('Sara', 'Ahmed', 2, 65000, '2020-07-01'),
+('Bilal', 'Raza', 1, 92000, '2019-11-20'),
+('Ayesha', 'Malik', 3, 55000, '2022-01-10'),
+('Usman', 'Tariq', NULL, 48000, '2023-05-05');
+```
+
+> `IDENTITY(1,1)` = auto-increment, start 1 se, +1 har row pe.
+
+---
+
+## Lesson 2: Advanced SELECT Queries — Filtering, Operators, Sorting
+
+### 1. Column Selection & Aliasing
+
+```sql
+-- Specific columns (SELECT * production mein avoid karo — performance issue)
+SELECT FirstName, LastName, Salary FROM Employees;
+
+-- Aliasing with AS
+SELECT 
+    FirstName AS [First Name],
+    Salary AS MonthlySalary
+FROM Employees;
+
+-- Table alias (especially joins mein useful)
+SELECT e.FirstName, e.Salary
+FROM Employees AS e;
+```
+
+### 2. WHERE Clause — Filtering
+
+```sql
+-- Comparison operators: =, <>, !=, >, <, >=, <=
+SELECT * FROM Employees WHERE Salary > 60000;
+SELECT * FROM Employees WHERE DepartmentID <> 1;  -- not equal
+```
+
+### 3. Logical Operators — AND, OR, NOT
+
+```sql
+SELECT * FROM Employees WHERE Salary > 50000 AND DepartmentID = 1;
+SELECT * FROM Employees WHERE DepartmentID = 1 OR DepartmentID = 3;
+SELECT * FROM Employees WHERE NOT DepartmentID = 1;
+```
+
+### 4. BETWEEN — Range Filtering
+
+```sql
+SELECT * FROM Employees WHERE Salary BETWEEN 50000 AND 90000;  -- inclusive dono ends
+SELECT * FROM Employees WHERE HireDate BETWEEN '2020-01-01' AND '2022-12-31';
+```
+
+### 5. IN — Multiple Value Matching
+
+```sql
+SELECT * FROM Employees WHERE DepartmentID IN (1, 2, 3);
+
+-- Iske barabar hai (lekin IN zyada clean hai)
+SELECT * FROM Employees WHERE DepartmentID = 1 OR DepartmentID = 2 OR DepartmentID = 3;
+```
+
+### 6. LIKE — Pattern Matching (Wildcards)
+
+| Wildcard | Matlab |
+|---|---|
+| `%` | Zero ya zyada characters |
+| `_` | Exactly ek character |
+
+```sql
+SELECT * FROM Employees WHERE FirstName LIKE 'A%';   -- 'A' se start
+SELECT * FROM Employees WHERE FirstName LIKE '%a%';  -- kahin bhi 'a'
+SELECT * FROM Employees WHERE FirstName LIKE '%n';   -- 'n' pe khatam
+SELECT * FROM Employees WHERE FirstName LIKE '____'; -- exactly 4 letters
+SELECT * FROM Employees WHERE FirstName LIKE '_l%';  -- 2nd letter 'l'
+```
+
+> Note: SQL Server default collation mein LIKE **case-insensitive** hota hai.
+
+### 7. NULL Handling — IS NULL / IS NOT NULL
+
+⚠️ **Important:** NULL ke saath kabhi `=` ya `<>` use nahi karte — hamesha `IS NULL` / `IS NOT NULL`.
+
+```sql
+SELECT * FROM Employees WHERE DepartmentID IS NULL;
+SELECT * FROM Employees WHERE DepartmentID IS NOT NULL;
+```
+
+### 8. ORDER BY — Sorting
+
+```sql
+SELECT * FROM Employees ORDER BY Salary;              -- ascending (default)
+SELECT * FROM Employees ORDER BY Salary DESC;          -- descending
+SELECT * FROM Employees ORDER BY DepartmentID ASC, Salary DESC;  -- multiple columns
+```
+
+### 9. TOP — Limited Rows
+
+```sql
+SELECT TOP 3 * FROM Employees ORDER BY Salary DESC;
+
+SELECT TOP 50 PERCENT * FROM Employees ORDER BY Salary DESC;
+
+-- WITH TIES: tie hone par extra matching rows bhi include karta hai
+SELECT TOP 3 WITH TIES * FROM Employees ORDER BY Salary DESC;
+```
+
+⚠️ **Common Mistake:** "Recently hired" = latest date = **DESC** use karo, ASC nahi.
+```sql
+-- Sabse recently hire hue 2 employees
+SELECT TOP 2 * FROM Employees ORDER BY HireDate DESC;
+```
+
+### 10. DISTINCT — Duplicate Values Hatana
+
+```sql
+SELECT DISTINCT DepartmentID FROM Employees;
+```
+
+---
+
+## Practice Exercises + Answers (Self Check)
+
+```sql
+-- 1. Salary > 60000 AND IT department
+SELECT * FROM Employees WHERE Salary > 60000 AND DepartmentID = 1;
+
+-- 2. Names starting with 'A', sorted by salary desc
+SELECT * FROM Employees WHERE FirstName LIKE 'A%' ORDER BY Salary DESC;
+
+-- 3. Top 2 most recently hired
+SELECT TOP 2 * FROM Employees ORDER BY HireDate DESC;
+
+-- 4. Last name Khan or Malik
+SELECT * FROM Employees WHERE LastName IN ('Khan', 'Malik');
+
+-- 5. Distinct department IDs (excluding NULL)
+SELECT DISTINCT DepartmentID FROM Employees WHERE DepartmentID IS NOT NULL;
+```
+
+---
+
+## 🔑 Key Takeaways / Interview Points
+
+- NULL comparisons **kabhi** `=`/`<>` se nahi, hamesha `IS NULL`/`IS NOT NULL`
+- `SELECT *` production code mein avoid karo — explicit columns better hain
+- `TOP N ... ORDER BY DESC` = most recent/highest N rows
+- `IN` operator multiple `OR` conditions ka clean replacement hai
+- DDL = structure, DML = data, DQL = read, DCL = permissions, TCL = transactions
+
+---
+
+*Next Lesson: JOINS (INNER, LEFT, RIGHT, FULL, CROSS, SELF) — interview ka sabse important topic*
