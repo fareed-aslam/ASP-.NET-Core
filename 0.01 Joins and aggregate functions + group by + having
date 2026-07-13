@@ -1,0 +1,331 @@
+# MS SQL Server — A to Z Notes
+## Lesson 3: JOINS
+## Lesson 4: Aggregate Functions + GROUP BY + HAVING
+
+---
+
+## LESSON 3: JOINS
+
+Joins ka use tab hota hai jab humein **do ya zyada tables se related data ek saath** nikalna ho.
+
+### Recap: Practice Data
+
+```
+Departments:
+DepartmentID | DeptName
+1            | IT
+2            | HR
+3            | Sales
+4            | Finance
+
+Employees:
+EmployeeID | FirstName | DepartmentID | Salary
+1          | Ali       | 1            | 85000
+2          | Sara      | 2            | 65000
+3          | Bilal     | 1            | 92000
+4          | Ayesha    | 3            | 55000
+5          | Usman     | NULL         | 48000
+```
+
+Note: DepartmentID = 4 (Finance) ka koi employee nahi, aur Usman ka DepartmentID NULL hai.
+
+### 1. INNER JOIN — Sirf Matching Rows
+
+```sql
+SELECT e.FirstName, e.Salary, d.DeptName
+FROM Employees e
+INNER JOIN Departments d ON e.DepartmentID = d.DepartmentID;
+```
+
+Sirf wo rows aati hain jahan dono tables mein match ho. Usman (NULL DeptID) aur Finance (no employees) exclude ho jate hain.
+
+### 2. LEFT JOIN (LEFT OUTER JOIN) — Left Table Ki Saari Rows
+
+```sql
+SELECT e.FirstName, e.Salary, d.DeptName
+FROM Employees e
+LEFT JOIN Departments d ON e.DepartmentID = d.DepartmentID;
+```
+
+Left table (Employees) ki saari rows aati hain, match na hone par right side ke columns NULL ho jate hain. Usman is query mein aayega (DeptName = NULL).
+
+**Use case:** Sabse zyada real-world use hone wala join — "saare records dikhao, related data ho ya na ho."
+
+### 3. RIGHT JOIN (RIGHT OUTER JOIN) — Right Table Ki Saari Rows
+
+```sql
+SELECT e.FirstName, e.Salary, d.DeptName
+FROM Employees e
+RIGHT JOIN Departments d ON e.DepartmentID = d.DepartmentID;
+```
+
+Right table (Departments) ki saari rows aati hain. Finance is query mein aayega (FirstName/Salary = NULL). Practically log LEFT JOIN hi zyada use karte hain (tables ka order swap karke) kyunki readability better hoti hai.
+
+### 4. FULL JOIN (FULL OUTER JOIN) — Dono Tables Ki Saari Rows
+
+```sql
+SELECT e.FirstName, e.Salary, d.DeptName
+FROM Employees e
+FULL JOIN Departments d ON e.DepartmentID = d.DepartmentID;
+```
+
+LEFT + RIGHT dono ka combination. Usman bhi aayega, Finance bhi aayega.
+
+### 5. CROSS JOIN — Cartesian Product
+
+```sql
+SELECT e.FirstName, d.DeptName
+FROM Employees e
+CROSS JOIN Departments d;
+```
+
+Har row of A ko har row of B ke saath combine karta hai. Koi ON condition nahi. 5 employees × 4 departments = 20 rows. Rare use case — jaise "har combination generate karna."
+
+### 6. SELF JOIN — Table Ka Khud Se Join
+
+Self Join koi alag "join type" nahi hai — ye ek **pattern** hai jisme table apne aap se join hoti hai. Isके liye INNER, LEFT, ya koi bhi join type use ho sakta hai. Typically hierarchical data (Manager-Employee) ke liye use hota hai.
+
+**Concept:** Alias se ek hi table ko do "labeled versions" mein treat karte hain — jaise ek phone book ki do photocopies nikal ke, ek copy pe "Person Name" dekhna aur doosri copy pe "Referred By" dhoondna.
+
+**Setup:**
+```sql
+ALTER TABLE Employees ADD ManagerID INT;
+
+UPDATE Employees SET ManagerID = NULL WHERE EmployeeID = 3;  -- Bilal, top level
+UPDATE Employees SET ManagerID = 3 WHERE EmployeeID = 1;     -- Ali -> Bilal
+UPDATE Employees SET ManagerID = 3 WHERE EmployeeID = 2;     -- Sara -> Bilal
+UPDATE Employees SET ManagerID = 1 WHERE EmployeeID = 4;     -- Ayesha -> Ali
+UPDATE Employees SET ManagerID = 2 WHERE EmployeeID = 5;     -- Usman -> Sara
+```
+
+**Self Join Query:**
+```sql
+SELECT 
+    e.FirstName AS Employee,
+    m.FirstName AS Manager
+FROM Employees e
+LEFT JOIN Employees m ON e.ManagerID = m.EmployeeID
+ORDER BY e.EmployeeID;
+```
+
+**Result:**
+```
+Employee | Manager
+Ali      | Bilal
+Sara     | Bilal
+Bilal    | NULL      <- Bilal ka koi manager nahi
+Ayesha   | Ali
+Usman    | Sara
+```
+
+**Kya ho raha hai:**
+1. `e` alias wali copy mein se ek-ek row uthai jati hai
+2. Har row ke `ManagerID` ko `m` alias wali copy ke `EmployeeID` se compare kiya jata hai
+3. Match milne par `m.FirstName` (manager ka naam) le aata hai
+4. LEFT JOIN isliye use kiya taake bina-manager wale employees (Bilal) bhi result mein rahein
+
+**Important Rule:** Self Join mein alias likhna **mandatory** hai, warna "ambiguous column" error aayega (kyunki dono copies mein same column names hain).
+
+```sql
+-- GALAT — ambiguous error
+FROM Employees
+LEFT JOIN Employees ON Employees.ManagerID = Employees.EmployeeID
+
+-- SAHI
+FROM Employees e
+LEFT JOIN Employees m ON e.ManagerID = m.EmployeeID
+```
+
+**Bonus queries:**
+```sql
+-- Top-level employees (jo kisi ko report nahi karte)
+SELECT FirstName FROM Employees WHERE ManagerID IS NULL;
+
+-- Bilal ke direct subordinates
+SELECT e.FirstName AS Subordinate
+FROM Employees e
+WHERE e.ManagerID = (SELECT EmployeeID FROM Employees WHERE FirstName = 'Bilal');
+```
+
+### Visual Summary
+
+| Join Type | Kya Milta Hai |
+|---|---|
+| **INNER JOIN** | Sirf matching rows (dono taraf) |
+| **LEFT JOIN** | Left table ki saari rows + matching right rows (na mile toh NULL) |
+| **RIGHT JOIN** | Right table ki saari rows + matching left rows (na mile toh NULL) |
+| **FULL JOIN** | Dono tables ki saari rows (matched + unmatched) |
+| **CROSS JOIN** | Har combination (Cartesian product) |
+| **SELF JOIN** | Table apne aap se (aliasing zaroori) |
+
+### Interview Concept: WHERE vs ON with LEFT JOIN
+
+```sql
+-- Version A: Filter ON clause mein — saare employees aayenge, DeptName sirf IT ke liye, baaki NULL
+SELECT e.FirstName, d.DeptName
+FROM Employees e
+LEFT JOIN Departments d ON e.DepartmentID = d.DepartmentID AND d.DeptName = 'IT';
+
+-- Version B: Filter WHERE clause mein — effectively INNER JOIN jaisa behavior ban jata hai
+SELECT e.FirstName, d.DeptName
+FROM Employees e
+LEFT JOIN Departments d ON e.DepartmentID = d.DepartmentID
+WHERE d.DeptName = 'IT';
+```
+
+**Farak:** ON clause ka filter join hone se **pehle** apply hota hai (LEFT JOIN behavior maintain hota hai). WHERE clause ka filter join hone ke **baad** apply hota hai, jo NULL rows ko exclude kar deta hai — effectively LEFT JOIN ko INNER JOIN jaisa bana deta hai.
+
+---
+
+## LESSON 4: Aggregate Functions + GROUP BY + HAVING
+
+Ye reporting queries ka core hai — "department-wise total salary", "har department mein kitne employees" jaisi cheezein isi se nikalti hain.
+
+### 1. Aggregate Functions — Basics
+
+Ye functions multiple rows lekar ek single value return karte hain.
+
+| Function | Kaam |
+|---|---|
+| `COUNT()` | Rows ginta hai |
+| `SUM()` | Total/sum nikalta hai |
+| `AVG()` | Average nikalta hai |
+| `MAX()` | Sabse zyada value |
+| `MIN()` | Sabse kam value |
+
+```sql
+SELECT COUNT(*) AS TotalEmployees FROM Employees;
+SELECT SUM(Salary) AS TotalSalary FROM Employees;
+SELECT AVG(Salary) AS AvgSalary FROM Employees;
+SELECT MAX(Salary) AS HighestSalary, MIN(Salary) AS LowestSalary FROM Employees;
+```
+
+### COUNT ki 3 Variations (Interview Trap)
+
+```sql
+SELECT COUNT(*) FROM Employees;              -- Saari rows (NULL bhi include)
+SELECT COUNT(DepartmentID) FROM Employees;   -- Sirf non-NULL values
+SELECT COUNT(DISTINCT DepartmentID) FROM Employees;  -- Unique non-NULL values
+```
+
+Hamare data pe: `COUNT(*)` = 5, `COUNT(DepartmentID)` = 4 (Usman NULL, exclude), `COUNT(DISTINCT DepartmentID)` = 3.
+
+### 2. GROUP BY — Data Ko Categories Mein Batna
+
+```sql
+SELECT DepartmentID, COUNT(*) AS EmployeeCount
+FROM Employees
+GROUP BY DepartmentID;
+```
+
+```sql
+SELECT DepartmentID, 
+       SUM(Salary) AS TotalSalary, 
+       AVG(Salary) AS AvgSalary,
+       COUNT(*) AS EmployeeCount
+FROM Employees
+GROUP BY DepartmentID;
+```
+
+### GROUP BY + JOIN Combine Karna (Real-world Pattern)
+
+```sql
+SELECT d.DeptName, 
+       COUNT(e.EmployeeID) AS EmployeeCount,
+       SUM(e.Salary) AS TotalSalary
+FROM Departments d
+LEFT JOIN Employees e ON d.DepartmentID = e.DepartmentID
+GROUP BY d.DeptName;
+```
+
+**Result:**
+```
+DeptName | EmployeeCount | TotalSalary
+IT       | 2             | 177000
+HR       | 1             | 65000
+Sales    | 1             | 55000
+Finance  | 0             | NULL
+```
+
+**Important:** `LEFT JOIN` use kiya taake Finance (no employees) bhi dikhe. `COUNT(e.EmployeeID)` use kiya na ke `COUNT(*)` — kyunki Finance ke liye `e.EmployeeID` NULL hoga aur COUNT() NULLs ignore karta hai, isliye 0 aata hai. `COUNT(*)` likhte toh galat 1 aa jata.
+
+### 3. Critical Rule: GROUP BY Ke Saath Kya Likh Sakte Ho
+
+SELECT list mein sirf wahi columns ho sakte hain jo (a) GROUP BY mein hain, ya (b) aggregate function ke andar hain.
+
+```sql
+-- GALAT — error dega
+SELECT FirstName, DepartmentID, SUM(Salary)
+FROM Employees
+GROUP BY DepartmentID;
+
+-- SAHI
+SELECT DepartmentID, SUM(Salary)
+FROM Employees
+GROUP BY DepartmentID;
+```
+
+**Kyun:** Agar DepartmentID = 1 mein Ali aur Bilal dono hain, SQL Server confuse ho jayega FirstName mein kya dikhaye — isliye allow nahi karta.
+
+### 4. HAVING — Groups Ko Filter Karna
+
+`WHERE` rows ko filter karta hai (grouping se pehle). `HAVING` groups ko filter karta hai (grouping ke baad, aggregate result pe).
+
+```sql
+-- WHERE — grouping se pehle row-level filter
+SELECT DepartmentID, AVG(Salary) AS AvgSalary
+FROM Employees
+WHERE Salary > 50000
+GROUP BY DepartmentID;
+
+-- HAVING — grouping ke baad, aggregate value pe filter
+SELECT DepartmentID, AVG(Salary) AS AvgSalary
+FROM Employees
+GROUP BY DepartmentID
+HAVING AVG(Salary) > 60000;
+```
+
+**Important:** HAVING mein aggregate function use kar sakte ho, WHERE mein nahi:
+
+```sql
+-- GALAT
+SELECT DepartmentID, AVG(Salary)
+FROM Employees
+WHERE AVG(Salary) > 60000    -- ERROR! WHERE mein aggregate allowed nahi
+GROUP BY DepartmentID;
+```
+
+**Kyun:** WHERE grouping se pehle execute hota hai — us waqt groups bane hi nahi hote. HAVING grouping ke baad run hota hai, jab averages already calculate ho chuke hote hain.
+
+### 5. Execution Order (Interview Important)
+
+```
+Likhne ka order:      SELECT → FROM → WHERE → GROUP BY → HAVING → ORDER BY
+Execute hone ka order: FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY
+```
+
+Isi wajah se WHERE mein column alias use nahi kar sakte (SELECT abhi execute nahi hua), lekin ORDER BY mein alias chal jata hai (SELECT uske pehle execute ho chuka).
+
+**Complete example (sab combine):**
+```sql
+SELECT d.DeptName, COUNT(e.EmployeeID) AS EmpCount, AVG(e.Salary) AS AvgSalary
+FROM Departments d
+LEFT JOIN Employees e ON d.DepartmentID = e.DepartmentID
+WHERE e.Salary > 40000 OR e.Salary IS NULL
+GROUP BY d.DeptName
+HAVING COUNT(e.EmployeeID) >= 1
+ORDER BY AvgSalary DESC;
+```
+
+---
+
+## Practice Exercises (Lesson 4)
+
+1. Har department ka naam aur us department mein employees ki total count dikhao (LEFT JOIN use karke, empty departments bhi dikhein).
+2. Sirf un departments ko dikhao jinki average salary 60000 se zyada hai.
+3. Total kitne employees hain jinka koi department assign nahi hai? (COUNT + WHERE IS NULL)
+4. Har department ka highest aur lowest salary dikhao, sirf un departments ke liye jinme 1 se zyada employee hai (HAVING COUNT > 1).
+
+---
+
+## Next Up: Lesson 5 — Subqueries + CTEs
