@@ -1,4 +1,6 @@
 # ASP.NET Core Middleware — Notes from Zero
+<img width="1216" height="744" alt="image" src="https://github.com/user-attachments/assets/0ccd18be-4eec-42ed-a211-ed5eb4f4ff59" />
+
 
 > Beginner-friendly notes on what middleware is, how the request pipeline works, common categories, and how to recognize middleware in `Program.cs`.
 
