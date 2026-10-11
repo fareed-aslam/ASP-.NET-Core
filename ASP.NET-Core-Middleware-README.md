@@ -109,6 +109,8 @@ A - After
 The exact `next` delegate signature depends on the overload being used. In common modern `app.Use` examples, `next(context)` is valid; some overloads expose a parameterless `next()` instead.
 
 ## 3. Common Middleware Categories
+<img width="1380" height="674" alt="image" src="https://github.com/user-attachments/assets/2f95233d-739c-49dd-9385-5976fe680865" />
+
 
 There is **no single official list with an exact number of middleware types**. These labels classify middleware in different ways and can overlap.
 
